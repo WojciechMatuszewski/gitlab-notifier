@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en" class="dark-theme">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="./output.css" rel="stylesheet" />
+    <title>Tauri + React + TS</title>
+    <script>
+      function changeTheme(theme) {
+        const element = document.documentElement;
+
+        element.classList.remove("dark-theme");
+        element.classList.remove("light-theme");
+
+        element.classList.add(`${theme}-theme`);
+      }
+
+      const darkModeListener = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      );
+      changeTheme(darkModeListener.matches ? "dark" : "light");
+
+      darkModeListener.addEventListener("change", ({ matches }) => {
+        changeTheme(matches ? "dark" : "light");
+      });
+    </script>
+  </head>
+
+  <body>
+    <main id="root" class="border border-[var(--gray-5)]"><main/>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
