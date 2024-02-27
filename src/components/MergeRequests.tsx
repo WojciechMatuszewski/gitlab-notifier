@@ -4,10 +4,11 @@ import { Avatar, Flex, Text } from "@radix-ui/themes";
 import dayjs from "dayjs";
 import { useFetchMRsSuspense } from "../lib/gitlab";
 import { EmptyState } from "./EmptyState";
+import { useIsMrUnread, useMarkMrAsRead } from "../lib/mrs-status.ts";
 
 export function MergeRequests() {
   const { data: mergeRequests } = useFetchMRsSuspense({
-    projectName: import.meta.env.VITE_GITLAB_PROJECT_NAME
+    projectName: import.meta.env.VITE_GITLAB_PROJECT_NAME,
   });
 
   if (mergeRequests.length === 0) {
@@ -26,14 +27,17 @@ export function MergeRequests() {
 }
 
 function MergeRequestsListItem({
-  mr
+  mr,
 }: {
   mr: MergeRequestSchemaWithBasicLabels;
 }) {
+  const isUnread = useIsMrUnread(mr);
+
   return (
     <li
+      data-unread={isUnread}
       className={
-        "hover:bg-[var(--accent-4)] border-b-[1px] border-b-[var(--gray-6)] px-2 py-1"
+        "hover:bg-[var(--accent-4)] list-item data-[unread=true]:bg-[var(--accent-2)] border-b-[1px] border-b-[var(--gray-6)] px-2 py-1"
       }
     >
       <MergeRequestItem mr={mr} />
@@ -42,9 +46,17 @@ function MergeRequestsListItem({
 }
 
 function MergeRequestItem({ mr }: { mr: MergeRequestSchemaWithBasicLabels }) {
+  const markAsRead = useMarkMrAsRead();
+
   return (
     <Flex asChild={true} className={"flex-col gap-1"}>
-      <a href={mr.web_url} target={"_blank"}>
+      <a
+        href={mr.web_url}
+        target={"_blank"}
+        onClick={() => {
+          markAsRead(mr);
+        }}
+      >
         <Flex className={"justify-between align-top gap-2"}>
           <MergeRequestTitle mr={mr} />
           <MergeRequestCreatedAt mr={mr} />
@@ -56,12 +68,14 @@ function MergeRequestItem({ mr }: { mr: MergeRequestSchemaWithBasicLabels }) {
 }
 
 function MergeRequestTitle({ mr }: { mr: MergeRequestSchemaWithBasicLabels }) {
+  const isUnread = useIsMrUnread(mr);
+
   return (
     <Text
       as="span"
       color={"indigo"}
       size={"2"}
-      weight={"medium"}
+      weight={isUnread ? "bold" : "medium"}
       className={"whitespace-nowrap overflow-hidden text-ellipsis"}
     >
       {mr.title}
@@ -70,7 +84,7 @@ function MergeRequestTitle({ mr }: { mr: MergeRequestSchemaWithBasicLabels }) {
 }
 
 function MergeRequestCreatedAt({
-  mr
+  mr,
 }: {
   mr: MergeRequestSchemaWithBasicLabels;
 }) {

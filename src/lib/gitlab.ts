@@ -6,11 +6,12 @@ import {
   useQueries,
   useQuery,
   useQueryClient,
-  useSuspenseQuery
+  useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useMemo } from "react";
 import { persist } from "zustand/middleware";
-import { useMarkAsRead, useSetItems } from "./status";
+import { useSetMRs, useSetNotes } from "./mrs-status";
+import { useMarkTodoRead, useSetTodoItems } from "./todos-status";
 
 interface TokenStore {
   apiToken: string;
@@ -29,13 +30,13 @@ const useGitlabTokenStore = create<TokenStore>()(
         },
         getApiToken: () => {
           return get().apiToken;
-        }
+        },
       };
     },
     {
-      name: "gitlab-token-storage"
-    }
-  )
+      name: "gitlab-token-storage",
+    },
+  ),
 );
 
 const client = new Gitlab({
@@ -46,7 +47,7 @@ const client = new Gitlab({
     }
 
     return token;
-  }
+  },
 });
 
 export const useGitlabToken = () => {
@@ -55,117 +56,153 @@ export const useGitlabToken = () => {
   return {
     token: apiToken,
     getToken: getApiToken,
-    setToken: setApiToken
+    setToken: setApiToken,
   };
 };
 
 export const useFetchTodosSuspense = () => {
+  const setTodoItems = useSetTodoItems();
+
   return useSuspenseQuery({
     queryKey: ["todos"],
     queryFn: async () => {
-      return await client.TodoLists.all();
-    }
+      const todos = await client.TodoLists.all();
+      setTodoItems(todos);
+
+      return todos;
+    },
   });
 };
 
 export const useFetchMRsSuspense = ({
-  projectName
+  projectName,
 }: {
   projectName: string;
 }) => {
+  const setMRs = useSetMRs();
+
   return useSuspenseQuery({
     queryKey: ["mergeRequests", projectName],
     queryFn: async () => {
-      return await client.MergeRequests.all({
+      const mrs = await client.MergeRequests.all({
         projectId: projectName,
         state: "opened",
         sort: "desc",
-        orderBy: "updated_at"
+        orderBy: "updated_at",
       });
-    }
+
+      setMRs(mrs);
+
+      return mrs;
+    },
   });
 };
 
 export const usePoolMRs = ({ projectName }: { projectName: string }) => {
-  const refetchInterval = randomIntFromInterval({
-    min: 15_000,
-    max: 45_000
-  });
+  const refetchInterval = useMemo(
+    () =>
+      randomIntFromInterval({
+        min: 15_000,
+        max: 45_000,
+      }),
+    [],
+  );
 
   const { token } = useGitlabToken();
 
-  const { data: mergeRequests = [] } = useQuery({
+  const setMRs = useSetMRs();
+  const { data: mrs = [] } = useQuery({
     queryKey: ["mergeRequests", projectName],
     queryFn: async () => {
-      return await client.MergeRequests.all({
+      const mrs = await client.MergeRequests.all({
         projectId: projectName,
         state: "opened",
         sort: "desc",
-        orderBy: "updated_at"
+        orderBy: "updated_at",
       });
+
+      setMRs(mrs);
+
+      return mrs;
     },
     refetchInterval: refetchInterval,
     refetchIntervalInBackground: true,
-    enabled: token.length > 1
+    enabled: token.length > 1,
   });
 
-  useQueries({
-    queries: mergeRequests.map((mergeRequest) => {
-      const refetchInterval = randomIntFromInterval({
-        min: 15_000,
-        max: 45_000
-      });
-
+  const setNotes = useSetNotes();
+  const results = useQueries({
+    queries: mrs.map((mr) => {
       return {
-        queryKey: ["mergeRequestNote", projectName, mergeRequest.iid],
-        queryFn: () => {
-          return client.MergeRequestNotes.all(projectName, mergeRequest.iid);
-        },
+        queryKey: ["mergeRequestNote", projectName, mr.iid],
+        queryFn: async () => {
+          const notes = await client.MergeRequestNotes.all(projectName, mr.iid);
 
-        refetchInterval: refetchInterval,
-        refetchInternalInBackground: true
+          setNotes({ mr, notes });
+
+          return notes;
+        },
       };
-    })
+    }),
   });
+
+  const hasItemsLoading = results.find((result) => {
+    return result.isLoading || result.isRefetching;
+  });
+
+  // TODO: refetch without infinite loop
+
+  // useEffect(() => {
+  //   if (hasItemsLoading) {
+  //     return;
+  //   }
+  //
+  //   results.forEach((result) => {
+  //     const refetchWaitFor = randomIntFromInterval({
+  //       min: 15_000,
+  //       max: 45_000,
+  //     });
+  //
+  //     new Promise((resolve) => {
+  //       setTimeout(resolve, refetchWaitFor);
+  //     }).then(() => {
+  //       void result.refetch();
+  //     });
+  //   });
+  // }, [hasItemsLoading, results]);
 };
 
 export const usePoolTodos = () => {
-  const refetchInterval = randomIntFromInterval({ min: 15_000, max: 45_000 });
+  const refetchInterval = useMemo(
+    // () => randomIntFromInterval({ min: 15_000, max: 45_000 }),
+    () => randomIntFromInterval({ min: 5_000, max: 5_000 }),
+    [],
+  );
 
   const { token } = useGitlabToken();
 
-  const { data: items = [], dataUpdatedAt } = useQuery({
+  const setTodoItems = useSetTodoItems();
+
+  useQuery({
     queryKey: ["todos"],
     queryFn: async () => {
-      return await client.TodoLists.all();
+      const todos = await client.TodoLists.all();
+
+      setTodoItems(todos);
+
+      return todos;
     },
     refetchInterval: refetchInterval,
     refetchIntervalInBackground: true,
-    initialDataUpdatedAt: 0,
     throwOnError: false,
     enabled: token.length > 1,
-    select: (todos) => {
-      return todos.map((todo) => {
-        return todo.id;
-      });
-    }
   });
-
-  const setItems = useSetItems();
-
-  useEffect(() => {
-    if (dataUpdatedAt === 0) {
-      return;
-    }
-
-    setItems(items);
-  }, [dataUpdatedAt, items, setItems]);
 };
 
 export const useMarkTodoDone = () => {
   const getToken = useGitlabTokenStore((store) => store.getApiToken);
 
-  const markAsNotNew = useMarkAsRead();
+  const markAsNotNew = useMarkTodoRead();
 
   const queryClient = useQueryClient();
 
@@ -176,10 +213,10 @@ export const useMarkTodoDone = () => {
       return await client.TodoLists.done({ todoId });
     },
     onSuccess: (data) => {
-      markAsNotNew(data.id);
+      markAsNotNew(data);
 
       queryClient.invalidateQueries({ queryKey: ["todos"] });
-    }
+    },
   });
 };
 

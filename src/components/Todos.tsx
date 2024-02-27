@@ -1,10 +1,11 @@
-import { TodoSchema } from "@gitbeaker/rest";
-import { CheckIcon, CheckboxIcon } from "@radix-ui/react-icons";
-import { Avatar, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
+import {TodoSchema} from "@gitbeaker/rest";
+import {CheckboxIcon, CheckIcon} from "@radix-ui/react-icons";
+import {Avatar, Flex, IconButton, Text, Tooltip} from "@radix-ui/themes";
 import dayjs from "dayjs";
-import { useFetchTodosSuspense, useMarkTodoDone } from "../lib/gitlab";
-import { useIsUnread, useMarkAsRead } from "../lib/status";
-import { EmptyState } from "./EmptyState";
+import {useFetchTodosSuspense, useMarkTodoDone} from "../lib/gitlab";
+import {useIsTodoUnread, useMarkTodoRead} from "../lib/todos-status";
+import {EmptyState} from "./EmptyState";
+
 
 export function Todos() {
   const { data: todos } = useFetchTodosSuspense();
@@ -17,7 +18,7 @@ export function Todos() {
     <section>
       <ul className={"list"}>
         {todos.map((todo) => {
-          return <TodosListItem key={todo.id} todo={todo} />;
+          return <TodosListItem key = {todo.id} todo={todo}/>
         })}
       </ul>
     </section>
@@ -25,13 +26,13 @@ export function Todos() {
 }
 
 function TodosListItem({ todo }: { todo: TodoSchema }) {
-  const isUnread = useIsUnread(todo.id);
+  const isUnread = useIsTodoUnread(todo);
 
   return (
     <li
       data-unread={isUnread}
       className={
-        "hover:bg-[var(--accent-4)] list-item data-[unread=true]:bg-[var(--accent-1)] border-b-[1px] border-b-[var(--gray-6)] px-2 py-1"
+        "hover:bg-[var(--accent-4)] list-item data-[unread=true]:bg-[var(--accent-2)] border-b-[1px] border-b-[var(--gray-6)] px-2 py-1"
       }
     >
       <TodoItem todo={todo} />
@@ -40,7 +41,7 @@ function TodosListItem({ todo }: { todo: TodoSchema }) {
 }
 
 function TodoItem({ todo }: { todo: TodoSchema }) {
-  const markAsNotNew = useMarkAsRead();
+  const markAsRead = useMarkTodoRead();
 
   return (
     <Flex asChild={true} className={"flex-col"}>
@@ -49,7 +50,7 @@ function TodoItem({ todo }: { todo: TodoSchema }) {
         className={"max-w-full min-w-0 flex flex-col"}
         target={"_blank"}
         onClick={() => {
-          markAsNotNew(todo.id);
+          markAsRead(todo);
         }}
       >
         <Flex className={"flex-row align-baseline gap-2 justify-between"}>
@@ -69,7 +70,7 @@ function TodoItem({ todo }: { todo: TodoSchema }) {
 }
 
 function TodoTitle({ todo }: { todo: TodoSchema }) {
-  const isUnread = useIsUnread(todo.id);
+  const isUnread = useIsTodoUnread(todo);
 
   const title = todo.target.title;
   if (typeof title !== "string") {

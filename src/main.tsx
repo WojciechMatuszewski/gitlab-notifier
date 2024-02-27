@@ -9,7 +9,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import updateLocale from "dayjs/plugin/updateLocale";
 
 import "@radix-ui/themes/styles.css";
-import { usePoolTodos as usePollTodos, usePoolMRs } from "./lib/gitlab";
+import { usePoolMRs, usePoolTodos } from "./lib/gitlab";
 import "./style.css";
 
 dayjs.extend(relativeTime);
@@ -29,8 +29,8 @@ dayjs.updateLocale("en", {
     M: "1m",
     MM: "%dm",
     y: "1y",
-    yy: "%dy"
-  }
+    yy: "%dy",
+  },
 });
 
 const queryClient = new QueryClient({
@@ -41,9 +41,9 @@ const queryClient = new QueryClient({
       refetchIntervalInBackground: false,
       refetchOnMount: false,
       refetchOnReconnect: false,
-      refetchOnWindowFocus: false
-    }
-  }
+      refetchOnWindowFocus: false,
+    },
+  },
 });
 
 async function enableMocking() {
@@ -63,12 +63,12 @@ enableMocking().then(() => {
           <DataPooler />
         </Theme>
       </QueryClientProvider>
-    </React.StrictMode>
+    </React.StrictMode>,
   );
 });
 
 function DataPooler() {
-  usePollTodos();
+  usePoolTodos();
 
   usePoolMRs({ projectName: import.meta.env.VITE_GITLAB_PROJECT_NAME });
 

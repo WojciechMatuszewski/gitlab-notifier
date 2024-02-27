@@ -14,12 +14,14 @@ export function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
         An error occurred
       </Heading>
 
-      <div className={"mt-6 text-center mb-2"}>
+      <div className={"text-center mb-2"}>
         <Text color={"red"} className={"opacity-80 text-center"}>
           {errorMessageFromError(error)}
         </Text>
       </div>
-      <Button onClick={() => resetErrorBoundary()}>Retry</Button>
+      <Button className={"mt-3"} onClick={() => resetErrorBoundary()}>
+        Retry
+      </Button>
     </section>
   );
 }

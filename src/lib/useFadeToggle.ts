@@ -1,5 +1,5 @@
-import { useAnimate } from "framer-motion";
-import { useState } from "react";
+import {useAnimate} from "framer-motion";
+import {useState} from "react";
 
 export function useFadeToggle() {
   const [scope, animate] = useAnimate();
